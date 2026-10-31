@@ -28,7 +28,7 @@ public class InputValidator {
       "Only digits, alphabets and symbol - _ . (except single .) are allowed";
   public static final String INVALID_NAMESPACE_NAMESPACE_MESSAGE =
       "not allowed to end with .json, .yml, .yaml, .xml, .properties";
-  public static final String CLUSTER_NAMESPACE_VALIDATOR = "[0-9a-zA-Z_.-]+";
+  public static final String CLUSTER_NAMESPACE_VALIDATOR = "[0-9a-zA-Z_-][0-9a-zA-Z_.-]*";
   private static final String APP_NAMESPACE_VALIDATOR =
       "[a-zA-Z0-9_-]+[a-zA-Z0-9._-]*(?<!\\.(json|yml|yaml|xml|properties))$";
   private static final Pattern CLUSTER_NAMESPACE_PATTERN =
