@@ -16,6 +16,8 @@
  */
 package com.ctrip.framework.apollo.portal.entity.vo.consumer;
 
+import java.util.List;
+
 /**
  * @see com.ctrip.framework.apollo.openapi.entity.Consumer
  * @see com.ctrip.framework.apollo.openapi.entity.ConsumerRole
@@ -35,6 +37,8 @@ public class ConsumerInfo {
   private boolean allowManageUsers;
 
   private Integer rateLimit;
+
+  private List<String> allowedIps;
 
   public String getAppId() {
     return appId;
@@ -122,6 +126,14 @@ public class ConsumerInfo {
 
   public void setRateLimit(Integer rateLimit) {
     this.rateLimit = rateLimit;
+  }
+
+  public List<String> getAllowedIps() {
+    return allowedIps;
+  }
+
+  public void setAllowedIps(List<String> allowedIps) {
+    this.allowedIps = allowedIps;
   }
 
 }

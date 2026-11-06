@@ -43,6 +43,20 @@ public class BadRequestExceptionTest {
   }
 
   @Test
+  public void testAllowedIpIsInvalid() {
+    BadRequestException allowedIpIsInvalid = BadRequestException.allowedIpIsInvalid("10.0.0.0/33");
+    assertEquals(
+        "allowed ip '10.0.0.0/33' is invalid, it should be an IPv4/IPv6 address or a CIDR block",
+        allowedIpIsInvalid.getMessage());
+  }
+
+  @Test
+  public void testAllowedIpsTooLong() {
+    BadRequestException allowedIpsTooLong = BadRequestException.allowedIpsTooLong(1024);
+    assertEquals("allowed ips must not exceed 1024 characters", allowedIpsTooLong.getMessage());
+  }
+
+  @Test
   public void testNamespaceNotExists() {
     BadRequestException namespaceNotExists = BadRequestException.namespaceNotExists();
     assertEquals("namespace not exist.", namespaceNotExists.getMessage());

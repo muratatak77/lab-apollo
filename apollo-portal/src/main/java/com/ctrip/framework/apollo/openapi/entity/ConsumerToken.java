@@ -47,6 +47,13 @@ public class ConsumerToken extends BaseEntity {
   @Column(name = "`RateLimit`", nullable = false)
   private Integer rateLimit;
 
+  /**
+   * Comma separated IP addresses or CIDR blocks allowed to use this token, null means no
+   * restriction.
+   */
+  @Column(name = "`AllowedIps`")
+  private String allowedIps;
+
   @Column(name = "`Expires`", nullable = false)
   private Date expires;
 
@@ -74,6 +81,14 @@ public class ConsumerToken extends BaseEntity {
     this.rateLimit = rateLimit;
   }
 
+  public String getAllowedIps() {
+    return allowedIps;
+  }
+
+  public void setAllowedIps(String allowedIps) {
+    this.allowedIps = allowedIps;
+  }
+
   public Date getExpires() {
     return expires;
   }
@@ -85,6 +100,7 @@ public class ConsumerToken extends BaseEntity {
   @Override
   public String toString() {
     return toStringHelper().add("consumerId", consumerId).add("token", token)
-        .add("rateLimit", rateLimit).add("expires", expires).toString();
+        .add("rateLimit", rateLimit).add("allowedIps", allowedIps).add("expires", expires)
+        .toString();
   }
 }

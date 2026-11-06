@@ -60,19 +60,20 @@
                         <table class="table">
                             <tr>
                                 <th style="width: 8%">{{'Common.AppId' | translate }}</th>
-                                <th style="width: 12%">{{'Common.AppName' | translate }}</th>
-                                <th style="width: 10%">{{'Open.Manage.Consumer.AllowCreateApplication' | translate }}</th>
-                                <th style="width: 10%">{{'Open.Manage.Consumer.AllowManageUsers' | translate }}</th>
+                                <th style="width: 10%">{{'Common.AppName' | translate }}</th>
+                                <th style="width: 9%">{{'Open.Manage.Consumer.AllowCreateApplication' | translate }}</th>
+                                <th style="width: 9%">{{'Open.Manage.Consumer.AllowManageUsers' | translate }}</th>
                                 <th style="width: 8%">{{'Open.Manage.Consumer.RateLimitValue' | translate }}</th>
-                                <th style="width: 14%">{{'Common.Department' | translate }}</th>
-                                <th style="width: 18%">{{'Common.AppOwner' | translate }}/{{'Common.Email' | translate }}</th>
-                                <th style="width: 20%">{{'Common.Operation' | translate}}</th>
+                                <th style="width: 12%">{{'Open.Manage.Consumer.AllowedIps' | translate }}</th>
+                                <th style="width: 12%">{{'Common.Department' | translate }}</th>
+                                <th style="width: 16%">{{'Common.AppOwner' | translate }}/{{'Common.Email' | translate }}</th>
+                                <th style="width: 16%">{{'Common.Operation' | translate}}</th>
                             </tr>
                             <tr ng-repeat="consumer in consumerList" href="#">
                                 <td style="width: 8%">{{ consumer.appId }}</td>
-                                <td style="width: 12%">{{ consumer.name }}</td>
+                                <td style="width: 10%">{{ consumer.name }}</td>
 
-                                <td style="width: 10%" >
+                                <td style="width: 9%" >
                                     <div ng-if="consumer.allowCreateApplication">
                                         <b>{{'Open.Manage.Consumer.AllowCreateApplication.Yes' | translate}}</b>
                                     </div>
@@ -80,7 +81,7 @@
                                         {{'Open.Manage.Consumer.AllowCreateApplication.No' | translate}}
                                     </div>
                                 </td>
-                                <td style="width: 10%" >
+                                <td style="width: 9%" >
                                     <div ng-if="consumer.allowManageUsers">
                                         <b>{{'Open.Manage.Consumer.AllowManageUsers.Yes' | translate}}</b>
                                     </div>
@@ -91,9 +92,13 @@
                                 <td style="width: 8%">
                                     {{ consumer.rateLimit && consumer.rateLimit &gt; 0 ? consumer.rateLimit : 'Open.Manage.Consumer.RateLimitValue.Display' | translate }}
                                 </td>
-                                <td style="width: 14%">{{ consumer.orgName + '(' + consumer.orgId + ')' }}</td>
-                                <td style="width: 18%"><b>{{ consumer.ownerName }}</b>/{{ consumer.ownerEmail }}</td>
-                                <td style="width: 20%;">
+                                <td style="width: 12%; word-break: break-all;">
+                                    <code ng-if="consumer.allowedIps && consumer.allowedIps.length">{{ formatAllowedIps(consumer.allowedIps) }}</code>
+                                    <span ng-if="!consumer.allowedIps || !consumer.allowedIps.length">{{'Open.Manage.Consumer.AllowedIps.Unrestricted' | translate}}</span>
+                                </td>
+                                <td style="width: 12%">{{ consumer.orgName + '(' + consumer.orgId + ')' }}</td>
+                                <td style="width: 16%"><b>{{ consumer.ownerName }}</b>/{{ consumer.ownerEmail }}</td>
+                                <td style="width: 16%;">
                                     <button class="btn btn-default btn-md" ng-click="preGrantPermission(consumer)">
                                         <img class="more-img" src="../img/edit.png" data-tooltip="tooltip"
                                              data-placement="bottom">{{'Open.Manage.ViewAndGrantPermission' | translate}}

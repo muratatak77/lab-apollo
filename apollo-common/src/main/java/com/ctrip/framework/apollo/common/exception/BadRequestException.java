@@ -41,6 +41,15 @@ public class BadRequestException extends AbstractApolloHttpException {
     return new BadRequestException("rate limit must be greater than 1");
   }
 
+  public static BadRequestException allowedIpIsInvalid(String allowedIp) {
+    return new BadRequestException(
+        "allowed ip '%s' is invalid, it should be an IPv4/IPv6 address or a CIDR block", allowedIp);
+  }
+
+  public static BadRequestException allowedIpsTooLong(int maxLength) {
+    return new BadRequestException("allowed ips must not exceed %s characters", maxLength);
+  }
+
   public static BadRequestException itemAlreadyExists(String itemKey) {
     return new BadRequestException("item already exists for itemKey:%s", itemKey);
   }

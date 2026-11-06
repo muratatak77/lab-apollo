@@ -8,6 +8,7 @@ Apollo 3.1.0
 * [Change: migrate the deprecated stale bot to GitHub Actions](https://github.com/apolloconfig/apollo/pull/5690)
 * [Change: standardize Maven POM formatting with Spotless SortPom](https://github.com/apolloconfig/apollo/pull/5702)
 * [Docs: clarify consumer token salt configuration and existing-token rotation](https://github.com/apolloconfig/apollo/pull/5703)
+* [Feature: restrict open api consumer tokens to an allowlist of client IPs](https://github.com/muratatak77/lab-apollo/pull/2)
 
 ------------------
 All issues and pull requests are [here](https://github.com/apolloconfig/apollo/milestone/22?closed=1)

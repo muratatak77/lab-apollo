@@ -359,7 +359,7 @@ public class PortalManagementController implements PortalManagementApi {
     Date resolvedExpires = parseConsumerExpires(expires);
     int rateLimit = resolveConsumerRateLimit(request);
     ConsumerToken consumerToken = consumerService.generateAndSaveConsumerToken(createdConsumer,
-        rateLimit, resolvedExpires, operator);
+        rateLimit, request.getAllowedIps(), resolvedExpires, operator);
     if (request.isAllowCreateApplication()) {
       consumerService.assignCreateApplicationRoleToConsumer(consumerToken.getToken(), operator);
     }

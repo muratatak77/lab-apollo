@@ -106,7 +106,7 @@ public class ConsumerController {
     }
 
     ConsumerToken consumerToken = consumerService.generateAndSaveConsumerToken(createdConsumer,
-        requestVO.getRateLimit(), expires, operator);
+        requestVO.getRateLimit(), requestVO.getAllowedIps(), expires, operator);
     if (requestVO.isAllowCreateApplication()) {
       consumerService.assignCreateApplicationRoleToConsumer(consumerToken.getToken(), operator);
     }

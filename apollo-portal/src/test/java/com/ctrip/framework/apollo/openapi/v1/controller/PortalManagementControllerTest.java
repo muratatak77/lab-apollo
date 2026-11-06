@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -72,6 +73,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -301,7 +303,7 @@ public class PortalManagementControllerTest {
         .thenReturn(createdConsumer);
     ConsumerToken consumerToken = new ConsumerToken();
     consumerToken.setToken("token");
-    when(consumerService.generateAndSaveConsumerToken(eq(createdConsumer), eq(0), any(),
+    when(consumerService.generateAndSaveConsumerToken(eq(createdConsumer), eq(0), isNull(), any(),
         eq("apollo"))).thenReturn(consumerToken);
     ConsumerInfo consumerInfo = new ConsumerInfo();
     consumerInfo.setConsumerId(1);
@@ -322,6 +324,38 @@ public class PortalManagementControllerTest {
     assertEquals("consumer-app", responseBody.getAppId());
     assertTrue(responseBody.isAllowManageUsers());
     verify(consumerService).assignManageUsersRoleToConsumer("token", "apollo");
+  }
+
+  @Test
+  public void createConsumerShouldPassAllowedIpsToTokenGeneration() {
+    ConsumerCreateRequestVO request = new ConsumerCreateRequestVO();
+    request.setAppId("consumer-app");
+    request.setName("consumer");
+    request.setOwnerName("apollo");
+    request.setOrgId("org");
+    request.setAllowedIps(Arrays.asList("10.0.0.0/8", "192.168.1.10"));
+    when(userInfoHolder.getUser()).thenReturn(new UserInfo("apollo"));
+    Consumer createdConsumer = new Consumer();
+    createdConsumer.setId(1);
+    createdConsumer.setAppId("consumer-app");
+    when(consumerService.createConsumer(any(Consumer.class), eq("apollo")))
+        .thenReturn(createdConsumer);
+    ConsumerToken consumerToken = new ConsumerToken();
+    consumerToken.setToken("token");
+    when(consumerService.generateAndSaveConsumerToken(eq(createdConsumer), eq(0),
+        eq(Arrays.asList("10.0.0.0/8", "192.168.1.10")), any(), eq("apollo")))
+        .thenReturn(consumerToken);
+    ConsumerInfo consumerInfo = new ConsumerInfo();
+    consumerInfo.setAppId("consumer-app");
+    consumerInfo.setAllowedIps(Arrays.asList("10.0.0.0/8", "192.168.1.10"));
+    when(consumerService.getConsumerInfoByAppId("consumer-app")).thenReturn(consumerInfo);
+
+    ResponseEntity<Object> response = controller.createConsumer(request, null);
+
+    assertEquals(200, response.getStatusCode().value());
+    assertSame(consumerInfo, response.getBody());
+    verify(consumerService, never()).assignCreateApplicationRoleToConsumer(any(), any());
+    verify(consumerService, never()).assignManageUsersRoleToConsumer(any(), any());
   }
 
   @Test

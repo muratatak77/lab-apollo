@@ -214,6 +214,80 @@ public class ConsumerAuthenticationFilterTest {
   }
 
 
+  @Test
+  public void testAllowedIpsMatched() throws Exception {
+    String someToken = "some-allowed-ips-token";
+    Long someConsumerId = 1L;
+
+    ConsumerToken someConsumerToken = new ConsumerToken();
+    someConsumerToken.setConsumerId(someConsumerId);
+    someConsumerToken.setToken(someToken);
+    someConsumerToken.setAllowedIps("192.168.1.10,10.0.0.0/8");
+
+    when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn(someToken);
+    when(request.getRemoteAddr()).thenReturn("10.1.2.3");
+    when(consumerAuthUtil.getConsumerToken(someToken)).thenReturn(someConsumerToken);
+
+    authenticationFilter.doFilter(request, response, filterChain);
+
+    verify(consumerAuthUtil, times(1)).storeConsumerId(request, someConsumerId);
+    verify(consumerAuditUtil, times(1)).audit(request, someConsumerId);
+    verify(filterChain, times(1)).doFilter(request, response);
+  }
+
+  @Test
+  public void testAllowedIpsNotMatched() throws Exception {
+    String someToken = "some-rejected-ips-token";
+    Long someConsumerId = 1L;
+
+    ConsumerToken someConsumerToken = new ConsumerToken();
+    someConsumerToken.setConsumerId(someConsumerId);
+    someConsumerToken.setToken(someToken);
+    someConsumerToken.setRateLimit(1);
+    someConsumerToken.setAllowedIps("192.168.1.10,10.0.0.0/8");
+
+    when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn(someToken);
+    when(request.getRemoteAddr()).thenReturn("172.16.0.1");
+    when(consumerAuthUtil.getConsumerToken(someToken)).thenReturn(someConsumerToken);
+    StringWriter body = new StringWriter();
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    try (MockedStatic<RateLimiter> rateLimiter = mockStatic(RateLimiter.class)) {
+      authenticationFilter.doFilter(request, response, filterChain);
+
+      rateLimiter.verifyNoInteractions();
+    }
+
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(response).setContentType(MediaType.APPLICATION_JSON_VALUE);
+    assertEquals("{\"message\":\"Client ip 172.16.0.1 is not allowed to use this token\"}",
+        body.toString());
+    verify(consumerAuthUtil, never()).storeConsumerId(eq(request), anyLong());
+    verify(consumerAuditUtil, never()).audit(eq(request), anyLong());
+    verify(filterChain, never()).doFilter(request, response);
+  }
+
+  @Test
+  public void testAllowedIpsIgnoreForwardedForHeader() throws Exception {
+    String someToken = "some-forwarded-for-token";
+
+    ConsumerToken someConsumerToken = new ConsumerToken();
+    someConsumerToken.setConsumerId(1L);
+    someConsumerToken.setToken(someToken);
+    someConsumerToken.setAllowedIps("10.0.0.0/8");
+
+    when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn(someToken);
+    when(request.getRemoteAddr()).thenReturn("172.16.0.1");
+    when(consumerAuthUtil.getConsumerToken(someToken)).thenReturn(someConsumerToken);
+    when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+    authenticationFilter.doFilter(request, response, filterChain);
+
+    verify(request, never()).getHeader("X-Forwarded-For");
+    verify(response).setStatus(HttpServletResponse.SC_FORBIDDEN);
+    verify(filterChain, never()).doFilter(request, response);
+  }
+
   private void setupRateLimitMocks(String someToken, Long someConsumerId, int qps) {
     ConsumerToken someConsumerToken = new ConsumerToken();
     someConsumerToken.setConsumerId(someConsumerId);

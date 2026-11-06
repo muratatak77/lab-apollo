@@ -29,6 +29,7 @@ import com.ctrip.framework.apollo.openapi.repository.ConsumerAuditRepository;
 import com.ctrip.framework.apollo.openapi.repository.ConsumerRepository;
 import com.ctrip.framework.apollo.openapi.repository.ConsumerRoleRepository;
 import com.ctrip.framework.apollo.openapi.repository.ConsumerTokenRepository;
+import com.ctrip.framework.apollo.openapi.util.ConsumerIpAllowlist;
 import com.ctrip.framework.apollo.portal.component.config.PortalConfig;
 import com.ctrip.framework.apollo.portal.entity.bo.UserInfo;
 import com.ctrip.framework.apollo.portal.entity.po.Role;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import org.apache.commons.lang3.time.FastDateFormat;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -117,12 +119,20 @@ public class ConsumerService {
     return consumerRepository.save(consumer);
   }
 
+  /**
+   * Generate and persist the token of the consumer.
+   *
+   * @param allowedIps client IP addresses or CIDR blocks allowed to use the token, null or empty
+   *        means no restriction
+   * @throws BadRequestException if any of the allowed ips is invalid
+   */
   public ConsumerToken generateAndSaveConsumerToken(Consumer consumer, Integer rateLimit,
-      Date expires, String operator) {
+      List<String> allowedIps, Date expires, String operator) {
     validateOperator(operator);
     Preconditions.checkArgument(consumer != null, "Consumer can not be null");
 
-    ConsumerToken consumerToken = generateConsumerToken(consumer, rateLimit, expires, operator);
+    ConsumerToken consumerToken = generateConsumerToken(consumer, rateLimit,
+        ConsumerIpAllowlist.normalize(allowedIps), expires, operator);
     consumerToken.setId(0);
 
     return consumerTokenRepository.save(consumerToken);
@@ -204,7 +214,7 @@ public class ConsumerService {
   }
 
   private ConsumerInfo convert(Consumer consumer, String token, boolean allowCreateApplication,
-      boolean allowManageUsers, Integer rateLimit) {
+      boolean allowManageUsers, ConsumerToken consumerToken) {
     ConsumerInfo consumerInfo = new ConsumerInfo();
     consumerInfo.setConsumerId(consumer.getId());
     consumerInfo.setAppId(consumer.getAppId());
@@ -213,7 +223,9 @@ public class ConsumerService {
     consumerInfo.setOwnerEmail(consumer.getOwnerEmail());
     consumerInfo.setOrgId(consumer.getOrgId());
     consumerInfo.setOrgName(consumer.getOrgName());
-    consumerInfo.setRateLimit(rateLimit);
+    consumerInfo.setRateLimit(resolveRateLimit(consumerToken));
+    consumerInfo.setAllowedIps(
+        ConsumerIpAllowlist.split(consumerToken == null ? null : consumerToken.getAllowedIps()));
 
     consumerInfo.setToken(token);
     consumerInfo.setAllowCreateApplication(allowCreateApplication);
@@ -231,7 +243,7 @@ public class ConsumerService {
       return null;
     }
     return convert(consumer, consumerToken.getToken(), isAllowCreateApplication(consumer.getId()),
-        isAllowManageUsers(consumer.getId()), getRateLimit(consumer.getId()));
+        isAllowManageUsers(consumer.getId()), consumerToken);
   }
 
   private boolean isAllowCreateApplication(Long consumerId) {
@@ -240,14 +252,6 @@ public class ConsumerService {
 
   private boolean isAllowManageUsers(Long consumerId) {
     return isAllowManageUsers(Collections.singletonList(consumerId)).get(0);
-  }
-
-  private Integer getRateLimit(Long consumerId) {
-    List<Integer> list = getRateLimit(Collections.singletonList(consumerId));
-    if (CollectionUtils.isEmpty(list)) {
-      return 0;
-    }
-    return list.get(0);
   }
 
   private List<Boolean> isAllowCreateApplication(List<Long> consumerIdList) {
@@ -277,14 +281,17 @@ public class ConsumerService {
     return consumerIdList.stream().map(consumerIdsWithRole::contains).collect(Collectors.toList());
   }
 
-  private List<Integer> getRateLimit(List<Long> consumerIds) {
+  private Map<Long, ConsumerToken> findConsumerTokens(List<Long> consumerIds) {
     List<ConsumerToken> consumerTokens = consumerTokenRepository.findByConsumerIdIn(consumerIds);
-    Map<Long, Integer> consumerRateLimits = consumerTokens.stream().collect(Collectors.toMap(
-        ConsumerToken::getConsumerId,
-        consumerToken -> consumerToken.getRateLimit() != null ? consumerToken.getRateLimit() : 0));
+    return consumerTokens.stream()
+        .collect(Collectors.toMap(ConsumerToken::getConsumerId, Function.identity()));
+  }
 
-    return consumerIds.stream().map(id -> consumerRateLimits.getOrDefault(id, 0))
-        .collect(Collectors.toList());
+  private int resolveRateLimit(ConsumerToken consumerToken) {
+    if (consumerToken == null || consumerToken.getRateLimit() == null) {
+      return 0;
+    }
+    return consumerToken.getRateLimit();
   }
 
   public ConsumerRole assignCreateApplicationRoleToConsumer(String token, String operator) {
@@ -361,8 +368,8 @@ public class ConsumerService {
     return consumerTokenRepository.save(entity);
   }
 
-  private ConsumerToken generateConsumerToken(Consumer consumer, Integer rateLimit, Date expires,
-      String createdBy) {
+  private ConsumerToken generateConsumerToken(Consumer consumer, Integer rateLimit,
+      String allowedIps, Date expires, String createdBy) {
     long consumerId = consumer.getId();
     Date createdTime = new Date();
 
@@ -373,6 +380,7 @@ public class ConsumerService {
     ConsumerToken consumerToken = new ConsumerToken();
     consumerToken.setConsumerId(consumerId);
     consumerToken.setRateLimit(rateLimit);
+    consumerToken.setAllowedIps(allowedIps);
     consumerToken.setExpires(expires);
     consumerToken.setDataChangeCreatedBy(createdBy);
     consumerToken.setDataChangeCreatedTime(createdTime);
@@ -458,7 +466,7 @@ public class ConsumerService {
         consumerList.stream().map(Consumer::getId).collect(Collectors.toList());
     List<Boolean> allowCreateApplicationList = isAllowCreateApplication(consumerIdList);
     List<Boolean> allowManageUsersList = isAllowManageUsers(consumerIdList);
-    List<Integer> rateLimitList = getRateLimit(consumerIdList);
+    Map<Long, ConsumerToken> consumerTokens = findConsumerTokens(consumerIdList);
 
     List<ConsumerInfo> consumerInfoList = new ArrayList<>(consumerList.size());
 
@@ -466,7 +474,7 @@ public class ConsumerService {
       Consumer consumer = consumerList.get(i);
       // without token
       ConsumerInfo consumerInfo = convert(consumer, null, allowCreateApplicationList.get(i),
-          allowManageUsersList.get(i), rateLimitList.get(i));
+          allowManageUsersList.get(i), consumerTokens.get(consumer.getId()));
       consumerInfoList.add(consumerInfo);
     }
 

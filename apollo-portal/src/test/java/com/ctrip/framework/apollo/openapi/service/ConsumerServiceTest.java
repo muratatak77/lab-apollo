@@ -37,13 +37,17 @@ import com.ctrip.framework.apollo.portal.spi.UserService;
 import com.ctrip.framework.apollo.portal.util.RoleUtils;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.ContextConfiguration;
@@ -190,7 +194,7 @@ public class ConsumerServiceTest {
 
     assertThrows(BadRequestException.class, () -> consumerService.createConsumer(consumer, " "));
     assertThrows(BadRequestException.class,
-        () -> consumerService.generateAndSaveConsumerToken(consumer, 0, new Date(), " "));
+        () -> consumerService.generateAndSaveConsumerToken(consumer, 0, null, new Date(), " "));
     assertThrows(BadRequestException.class,
         () -> consumerService.assignNamespaceRoleToConsumer("token", testAppId, "namespace", " "));
     assertThrows(BadRequestException.class,
@@ -360,6 +364,108 @@ public class ConsumerServiceTest {
     assertEquals(appId, consumerInfo.getAppId());
     assertEquals(token, consumerInfo.getToken());
     assertEquals(consumerId, consumerInfo.getConsumerId());
+  }
+
+  @Test
+  void generateAndSaveConsumerTokenShouldNormalizeAllowedIps() {
+    Consumer consumer = new Consumer();
+    consumer.setId(1L);
+    consumer.setAppId(testAppId);
+    when(consumerTokenRepository.save(any(ConsumerToken.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    ConsumerToken consumerToken = consumerService.generateAndSaveConsumerToken(consumer, 10,
+        Arrays.asList(" 10.0.0.0/8\n192.168.1.10 ", "10.0.0.0/8"), new Date(), testOwner);
+
+    assertEquals("10.0.0.0/8,192.168.1.10", consumerToken.getAllowedIps());
+    assertEquals(10, consumerToken.getRateLimit());
+    assertEquals(1L, consumerToken.getConsumerId());
+  }
+
+  @Test
+  void generateAndSaveConsumerTokenWithoutAllowedIps() {
+    Consumer consumer = new Consumer();
+    consumer.setId(1L);
+    consumer.setAppId(testAppId);
+    when(consumerTokenRepository.save(any(ConsumerToken.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    ConsumerToken consumerToken = consumerService.generateAndSaveConsumerToken(consumer, 0,
+        Collections.singletonList(" "), new Date(), testOwner);
+
+    assertNull(consumerToken.getAllowedIps());
+  }
+
+  @Test
+  void generateAndSaveConsumerTokenShouldRejectInvalidAllowedIps() {
+    Consumer consumer = new Consumer();
+    consumer.setId(1L);
+    consumer.setAppId(testAppId);
+
+    BadRequestException exception = assertThrows(BadRequestException.class,
+        () -> consumerService.generateAndSaveConsumerToken(consumer, 0,
+            Arrays.asList("10.0.0.1", "some-host.example.com"), new Date(), testOwner));
+
+    assertEquals(BadRequestException.allowedIpIsInvalid("some-host.example.com").getMessage(),
+        exception.getMessage());
+    verify(consumerTokenRepository, never()).save(any(ConsumerToken.class));
+  }
+
+  @Test
+  void getConsumerInfoByAppIdShouldContainAllowedIps() {
+    final long consumerId = 2025;
+    Consumer consumer = new Consumer();
+    consumer.setAppId(testAppId);
+    consumer.setId(consumerId);
+    when(consumerRepository.findByAppId(eq(testAppId))).thenReturn(consumer);
+
+    ConsumerToken consumerToken = new ConsumerToken();
+    consumerToken.setToken("token-2025");
+    consumerToken.setRateLimit(20);
+    consumerToken.setAllowedIps("10.0.0.0/8,::1");
+    when(consumerTokenRepository.findByConsumerId(eq(consumerId))).thenReturn(consumerToken);
+
+    ConsumerInfo consumerInfo = consumerService.getConsumerInfoByAppId(testAppId);
+
+    assertEquals(20, consumerInfo.getRateLimit());
+    assertEquals(Arrays.asList("10.0.0.0/8", "::1"), consumerInfo.getAllowedIps());
+  }
+
+  @Test
+  void findConsumerInfoListShouldLoadTokensOnce() {
+    Consumer restricted = new Consumer();
+    restricted.setId(1L);
+    restricted.setAppId("restricted-app");
+    Consumer unrestricted = new Consumer();
+    unrestricted.setId(2L);
+    unrestricted.setAppId("unrestricted-app");
+    Consumer withoutToken = new Consumer();
+    withoutToken.setId(3L);
+    withoutToken.setAppId("without-token-app");
+    PageRequest page = PageRequest.of(0, 10);
+    when(consumerRepository.findAll(page))
+        .thenReturn(new PageImpl<>(Arrays.asList(restricted, unrestricted, withoutToken)));
+
+    ConsumerToken restrictedToken = new ConsumerToken();
+    restrictedToken.setConsumerId(1L);
+    restrictedToken.setRateLimit(5);
+    restrictedToken.setAllowedIps("192.168.1.0/24");
+    ConsumerToken unrestrictedToken = new ConsumerToken();
+    unrestrictedToken.setConsumerId(2L);
+    when(consumerTokenRepository.findByConsumerIdIn(Arrays.asList(1L, 2L, 3L)))
+        .thenReturn(Arrays.asList(restrictedToken, unrestrictedToken));
+
+    List<ConsumerInfo> consumerInfos = consumerService.findConsumerInfoList(page);
+
+    assertEquals(3, consumerInfos.size());
+    assertEquals(5, consumerInfos.get(0).getRateLimit());
+    assertEquals(Collections.singletonList("192.168.1.0/24"), consumerInfos.get(0).getAllowedIps());
+    assertEquals(0, consumerInfos.get(1).getRateLimit());
+    assertTrue(consumerInfos.get(1).getAllowedIps().isEmpty());
+    assertEquals(0, consumerInfos.get(2).getRateLimit());
+    assertTrue(consumerInfos.get(2).getAllowedIps().isEmpty());
+    assertNull(consumerInfos.get(0).getToken());
+    verify(consumerTokenRepository, times(1)).findByConsumerIdIn(anyList());
   }
 
   @Test

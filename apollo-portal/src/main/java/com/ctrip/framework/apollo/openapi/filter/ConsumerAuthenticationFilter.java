@@ -19,6 +19,7 @@ package com.ctrip.framework.apollo.openapi.filter;
 import com.ctrip.framework.apollo.openapi.entity.ConsumerToken;
 import com.ctrip.framework.apollo.openapi.util.ConsumerAuditUtil;
 import com.ctrip.framework.apollo.openapi.util.ConsumerAuthUtil;
+import com.ctrip.framework.apollo.openapi.util.ConsumerIpAllowlist;
 import com.ctrip.framework.apollo.portal.util.UserTokenAuthUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
@@ -94,6 +95,22 @@ public class ConsumerAuthenticationFilter implements Filter {
 
     if (null == consumerToken) {
       writeOpenApiError(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+      return;
+    }
+
+    // Use the remote address resolved by the servlet container instead of trusting the
+    // X-Forwarded-For header directly. Deployments behind a reverse proxy should configure
+    // server.forward-headers-strategy=native with server.tomcat.remoteip.internal-proxies
+    // limited to their own proxies. Do not use the framework strategy: Spring's
+    // ForwardedHeaderFilter takes the leftmost X-Forwarded-For value, which clients can spoof.
+    String clientIp = request.getRemoteAddr();
+    if (!ConsumerIpAllowlist.isAllowed(consumerToken.getAllowedIps(), clientIp)) {
+      // DEBUG rather than WARN: this runs once per rejected request and before the rate limiter,
+      // so a leaked token used from outside the allowlist must not be able to flood the logs.
+      logger.debug("Open api request from {} is rejected by the ip allowlist of consumer {}",
+          clientIp, consumerToken.getConsumerId());
+      writeOpenApiError(response, HttpServletResponse.SC_FORBIDDEN,
+          "Client ip " + clientIp + " is not allowed to use this token");
       return;
     }
 

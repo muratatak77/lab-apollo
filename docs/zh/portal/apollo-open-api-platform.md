@@ -19,6 +19,24 @@ Apollo管理员在 `http://{portal_address}/open/add-consumer.html` 创建第三
 
 ![开放平台管理](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/apollo-open-manage.png)
 
+##### 2.1.1 限制Token的客户端IP（从Apollo 3.1.0开始支持）
+
+创建第三方应用时，Apollo管理员可以选填**IP白名单**，将Token绑定到第三方应用所在的服务器。每一项可以是IPv4/IPv6地址或者CIDR网段，多项之间以逗号或换行分隔，例如：
+
+```
+10.0.0.0/8
+192.168.1.10
+2001:db8::/32
+```
+
+配置之后，即使Token本身有效，来自白名单以外IP的Open API请求也会被拒绝并返回HTTP 403。留空则保持原有行为，即不限制调用方IP。配置的白名单会展示在第三方应用列表页面，并通过 `GET /openapi/v1/consumer-tokens/by-appId` 的 `allowedIps` 字段返回。
+
+> 客户端IP取自Portal Web服务器解析出的远端地址，不会直接信任 `X-Forwarded-For` 请求头。如果Portal部署在反向代理或负载均衡之后，需要配置 `server.forward-headers-strategy=native`，由Tomcat的 `RemoteIpValve` 解析客户端IP，并将 `server.tomcat.remoteip.internal-proxies` 设置为只匹配自己代理IP的正则表达式（默认值会匹配所有内网网段）。该Valve只信任这些代理追加的 `X-Forwarded-For` 条目，否则参与白名单匹配的将是代理的IP。
+
+> 启用白名单时请不要使用 `server.forward-headers-strategy=framework`。Spring的 `ForwardedHeaderFilter` 会直接取 `X-Forwarded-For` 最左边的值，不校验是哪个代理添加的，客户端可以发送 `X-Forwarded-For: <白名单中的IP>` 绕过白名单。
+
+> IPv4和IPv6地址是分别匹配的，例如 `127.0.0.1` 不会匹配 `::1`。
+
 #### 2.2 查看第三方应用
 Apollo管理员在 `http://{portal_address}/open/manage.html` 页面可以查看第三方应用列表。并提供了【查看Token并赋权】、【删除】等管理操作，如下图所示：
 
@@ -960,6 +978,8 @@ operator | false | String | 删除配置的操作者，域账号
 接口传入的token非法或者已过期，客户端需要检查token是否传入正确。
 ####  4.3 403 - Forbidden
 接口要访问的资源未得到授权，比如只授权了对A应用下Namespace的管理权限，但是却尝试管理B应用下的配置。
+
+如果Token配置了IP白名单，而请求来自白名单以外的IP，也会返回403，详见2.1.1节 限制Token的客户端IP。
 ####  4.4 404 - Not Found
 接口要访问的资源不存在，一般是URL或URL的参数错误。
 ####  4.5 405 - Method Not Allowed
