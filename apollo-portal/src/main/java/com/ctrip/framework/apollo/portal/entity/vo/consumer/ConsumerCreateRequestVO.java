@@ -16,6 +16,9 @@
  */
 package com.ctrip.framework.apollo.portal.entity.vo.consumer;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import java.util.List;
+
 /**
  * @see com.ctrip.framework.apollo.openapi.entity.Consumer
  */
@@ -29,6 +32,12 @@ public class ConsumerCreateRequestVO {
   private String ownerName;
   private boolean rateLimitEnabled;
   private int rateLimit;
+  /**
+   * Client IP addresses or CIDR blocks allowed to use the token, a single comma separated string is
+   * accepted as well.
+   */
+  @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+  private List<String> allowedIps;
 
   public String getAppId() {
     return appId;
@@ -100,6 +109,14 @@ public class ConsumerCreateRequestVO {
 
   public void setRateLimit(int rateLimit) {
     this.rateLimit = rateLimit;
+  }
+
+  public List<String> getAllowedIps() {
+    return allowedIps;
+  }
+
+  public void setAllowedIps(List<String> allowedIps) {
+    this.allowedIps = allowedIps;
   }
 
 }

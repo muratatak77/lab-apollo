@@ -19,6 +19,22 @@ Apollo administrator creates the third-party application at `http://{portal_addr
 
 ![Open Platform Management](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/apollo-open-manage.png)
 
+##### 2.1.1 Restricting the client IPs of a token (available from Apollo 3.1.0)
+
+When creating the third-party application, Apollo administrator can optionally fill in **Allowed client IPs** to bind the token to the servers of the third-party application. Each entry can be an IPv4/IPv6 address or a CIDR block, multiple entries are separated by commas or new lines, e.g.
+
+```
+10.0.0.0/8
+192.168.1.10
+2001:db8::/32
+```
+
+Once configured, Open API requests carrying the token from any other IP are rejected with HTTP 403, even if the token itself is valid. Leaving it empty keeps the previous behavior, i.e. the token can be used from any IP. The configured allowlist is shown on the third-party app list page and returned as `allowedIps` by `GET /openapi/v1/consumer-tokens/by-appId`.
+
+> The client IP is the remote address resolved by the Portal web server, the `X-Forwarded-For` header is not trusted directly. If the Portal is deployed behind a reverse proxy or load balancer, configure `server.forward-headers-strategy=native` (or `framework`) and make sure the proxy is trusted, otherwise the IP of the proxy will be matched against the allowlist.
+
+> IPv4 and IPv6 addresses are matched separately, e.g. `127.0.0.1` does not match `::1`.
+
 #### 2.2 View third-party apps
 Apollo administrator in `http://{portal_address}/open/manage.html` The HTML page allows you to view the list of third-party applications. It also provides management operations such as [View token and empower] and [delete], as shown in the following figure:
 ![第三方应用列表](https://cdn.jsdelivr.net/gh/apolloconfig/apollo@master/doc/images/apollo-open-manage-list.png)
@@ -970,6 +986,8 @@ The token passed to the interface is illegal or expired, the client needs to che
 #### 4.3 403 - Forbidden
 
 The interface is trying to access a resource that is not authorized, for example, it is only authorized to manage Namespace under application A, but it is trying to manage the configuration under application B.
+
+It is also returned when the token has an IP allowlist and the request comes from an IP that is not in the allowlist, see section 2.1.1 Restricting the client IPs of a token.
 
 #### 4.4 404 - Not Found
 

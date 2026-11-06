@@ -45,8 +45,33 @@ appService.service('ConsumerService', ['$resource', '$q', 'AppUtil',
 
     });
 
-                                           
+    var ALLOWED_IPS_SEPARATOR = /[\s,;]+/;
+
+    // split the user input into allowlist entries, the server side does the real validation
+    function parseAllowedIps(text) {
+        if (!text) {
+            return [];
+        }
+        var entries = [];
+        String(text).split(ALLOWED_IPS_SEPARATOR).forEach(function (entry) {
+            if (entry && entries.indexOf(entry) < 0) {
+                entries.push(entry);
+            }
+        });
+        return entries;
+    }
+
+    // ConsumerInfo returns a list while ConsumerToken returns the persisted comma separated value
+    function formatAllowedIps(allowedIps) {
+        if (Array.isArray(allowedIps)) {
+            return allowedIps.join(', ');
+        }
+        return parseAllowedIps(allowedIps).join(', ');
+    }
+
     return {
+        parseAllowedIps: parseAllowedIps,
+        formatAllowedIps: formatAllowedIps,
         createConsumer: function (consumer) {
             return AppUtil.ajax(resource.create_consumer, {}, consumer);
         },

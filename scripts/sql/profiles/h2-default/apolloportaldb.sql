@@ -162,6 +162,7 @@ CREATE TABLE `ConsumerToken` (
   `ConsumerId` int(11) unsigned DEFAULT NULL COMMENT 'ConsumerId',
   `Token` varchar(128) NOT NULL DEFAULT '' COMMENT 'token',
   `RateLimit` int NOT NULL DEFAULT '0' COMMENT '限流值',
+  `AllowedIps` varchar(1024) DEFAULT NULL COMMENT '允许访问的客户端IP白名单，逗号分隔，支持CIDR，为空表示不限制',
   `Expires` datetime NOT NULL DEFAULT '2099-01-01 00:00:00' COMMENT 'token失效时间',
   `IsDeleted` boolean NOT NULL DEFAULT FALSE COMMENT '1: deleted, 0: normal',
   `DeletedAt` BIGINT(20) NOT NULL DEFAULT '0' COMMENT 'Delete timestamp based on milliseconds',

@@ -41,6 +41,7 @@ function OpenManageController($scope, $translate, toastr, AppUtil, OrganizationS
     $scope.preDeleteConsumer = preDeleteConsumer;
     $scope.deleteConsumer = deleteConsumer;
     $scope.preGrantPermission = preGrantPermission;
+    $scope.formatAllowedIps = ConsumerService.formatAllowedIps;
     $scope.toggleRateLimitEnabledInput = function() {
         if (!$scope.consumer.rateLimitEnabled) {
             $scope.consumer.rateLimit = 0;
@@ -199,7 +200,11 @@ function OpenManageController($scope, $translate, toastr, AppUtil, OrganizationS
         }
         $scope.consumer.ownerName = owner.id;
 
-        ConsumerService.createConsumer($scope.consumer)
+        var request = angular.copy($scope.consumer);
+        request.allowedIps = ConsumerService.parseAllowedIps(request.allowedIpsText);
+        delete request.allowedIpsText;
+
+        ConsumerService.createConsumer(request)
             .then(function (consumerToken) {
                 toastr.success($translate.instant('Common.Created'));
                 $scope.consumerToken = consumerToken;
@@ -237,7 +242,8 @@ function OpenManageController($scope, $translate, toastr, AppUtil, OrganizationS
             allowCreateApplication: false,
             allowManageUsers: false,
             rateLimitEnabled: false,
-            rateLimit: 0
+            rateLimit: 0,
+            allowedIpsText: ''
         };
     }
 
