@@ -64,3 +64,4 @@ public class UniqueKeyGenerator {
   }
 
 }
+// Lab note.
