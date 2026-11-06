@@ -67,6 +67,24 @@ class ConsumerIpAllowlistTest {
   }
 
   @Test
+  void normalizeRejectsIpv4Shorthand() {
+    for (String shorthand : Arrays.asList("192.168.1/24", "192.168.1", "10", "10/8", "127.1")) {
+      BadRequestException exception = assertThrows(BadRequestException.class,
+          () -> ConsumerIpAllowlist.normalize(List.of(shorthand)));
+      assertEquals(BadRequestException.allowedIpIsInvalid(shorthand).getMessage(),
+          exception.getMessage());
+    }
+  }
+
+  @Test
+  void shorthandEntryInPersistedAllowlistIsIgnored() {
+    // written to the database directly, bypassing normalize
+    assertFalse(ConsumerIpAllowlist.isAllowed("192.168.1/24", "192.168.0.1"));
+    assertFalse(ConsumerIpAllowlist.isAllowed("192.168.1/24", "192.168.1.1"));
+    assertTrue(ConsumerIpAllowlist.isAllowed("192.168.1/24,10.0.0.1", "10.0.0.1"));
+  }
+
+  @Test
   void normalizeRejectsTooLongAllowlist() {
     StringBuilder allowedIps = new StringBuilder();
     for (int i = 0; i < 100; i++) {

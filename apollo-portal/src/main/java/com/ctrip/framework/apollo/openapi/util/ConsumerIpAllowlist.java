@@ -23,6 +23,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.net.InetAddresses;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -95,6 +96,9 @@ public final class ConsumerIpAllowlist {
 
   /**
    * Split the persisted allowlist into entries, used for display purpose.
+   *
+   * @param allowedIps the persisted allowlist
+   * @return the entries, or an empty list if the allowlist is blank
    */
   public static List<String> split(String allowedIps) {
     if (Strings.isNullOrEmpty(allowedIps)) {
@@ -146,21 +150,35 @@ public final class ConsumerIpAllowlist {
   private static List<IpAddressMatcher> parseMatchers(String allowedIps) {
     List<IpAddressMatcher> matchers = new ArrayList<>();
     for (String entry : SPLITTER.split(allowedIps)) {
-      try {
-        matchers.add(new IpAddressMatcher(entry));
-      } catch (IllegalArgumentException ex) {
-        // ignore the invalid entry which might be written to the database directly, so that
-        // the remaining entries still take effect and the token is never opened up to everyone
+      IpAddressMatcher matcher = toMatcher(entry);
+      // ignore the invalid entry which might be written to the database directly, so that
+      // the remaining entries still take effect and the token is never opened up to everyone
+      if (matcher != null) {
+        matchers.add(matcher);
       }
     }
     return Collections.unmodifiableList(matchers);
   }
 
   private static void validateEntry(String entry) {
-    try {
-      new IpAddressMatcher(entry);
-    } catch (IllegalArgumentException ex) {
+    if (toMatcher(entry) == null) {
       throw BadRequestException.allowedIpIsInvalid(entry);
+    }
+  }
+
+  private static IpAddressMatcher toMatcher(String entry) {
+    // IpAddressMatcher resolves the address with InetAddress.getByName, which accepts IPv4
+    // shorthand such as "192.168.1" (192.168.0.1) or "10" (0.0.0.10). Require a full IP literal
+    // so that an entry always means what it looks like.
+    int slash = entry.indexOf('/');
+    String address = slash < 0 ? entry : entry.substring(0, slash);
+    if (!InetAddresses.isInetAddress(address)) {
+      return null;
+    }
+    try {
+      return new IpAddressMatcher(entry);
+    } catch (IllegalArgumentException ex) {
+      return null;
     }
   }
 }

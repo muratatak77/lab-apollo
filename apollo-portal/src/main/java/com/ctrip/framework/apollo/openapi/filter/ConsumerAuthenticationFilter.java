@@ -105,7 +105,9 @@ public class ConsumerAuthenticationFilter implements Filter {
     // ForwardedHeaderFilter takes the leftmost X-Forwarded-For value, which clients can spoof.
     String clientIp = request.getRemoteAddr();
     if (!ConsumerIpAllowlist.isAllowed(consumerToken.getAllowedIps(), clientIp)) {
-      logger.warn("Open api request from {} is rejected by the ip allowlist of consumer {}",
+      // DEBUG rather than WARN: this runs once per rejected request and before the rate limiter,
+      // so a leaked token used from outside the allowlist must not be able to flood the logs.
+      logger.debug("Open api request from {} is rejected by the ip allowlist of consumer {}",
           clientIp, consumerToken.getConsumerId());
       writeOpenApiError(response, HttpServletResponse.SC_FORBIDDEN,
           "Client ip " + clientIp + " is not allowed to use this token");

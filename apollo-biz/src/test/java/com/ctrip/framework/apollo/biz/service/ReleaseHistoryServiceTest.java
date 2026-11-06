@@ -85,7 +85,8 @@ public class ReleaseHistoryServiceTest {
   @Before
   public void setUp() throws Exception {
     mocks = MockitoAnnotations.openMocks(this);
-    // Swap in the mock on the shared singleton and restore it in tearDown, instead of dirtying the
+    // Swap in the mocks on the shared singleton and restore them in tearDown, instead of dirtying
+    // the
     // context: closing the context runs Hibernate create-drop and empties the shared H2 database
     // that other cached test contexts still use.
     originalBizConfig = ReflectionTestUtils.getField(releaseHistoryService, "bizConfig");
