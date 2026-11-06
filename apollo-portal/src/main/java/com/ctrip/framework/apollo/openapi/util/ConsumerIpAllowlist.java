@@ -116,7 +116,7 @@ public final class ConsumerIpAllowlist {
    */
   public static boolean isAllowed(String allowedIps, String clientIp) {
     if (Strings.isNullOrEmpty(allowedIps)) {
-      return true;
+      return false;
     }
     if (Strings.isNullOrEmpty(clientIp)) {
       return false;
