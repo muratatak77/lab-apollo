@@ -102,8 +102,8 @@ public class ReleaseHistoryServiceTest {
   @After
   public void tearDown() throws Exception {
     ReflectionTestUtils.setField(releaseHistoryService, "bizConfig", originalBizConfig);
-    ReflectionTestUtils.setField(
-        releaseHistoryService, "releaseRepository", originalReleaseRepository);
+    ReflectionTestUtils.setField(releaseHistoryService, "releaseRepository",
+        originalReleaseRepository);
     if (mocks != null) {
       mocks.close();
     }
