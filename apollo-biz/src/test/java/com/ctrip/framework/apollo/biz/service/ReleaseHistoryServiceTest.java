@@ -45,8 +45,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -59,7 +57,6 @@ import org.springframework.util.ReflectionUtils;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = BizTestConfiguration.class, webEnvironment = WebEnvironment.RANDOM_PORT)
-@DirtiesContext(classMode = ClassMode.AFTER_CLASS)
 public class ReleaseHistoryServiceTest {
 
   @Mock
@@ -69,6 +66,8 @@ public class ReleaseHistoryServiceTest {
 
   private ReleaseHistory mockReleaseHistory;
   private AutoCloseable mocks;
+  private Object originalBizConfig;
+  private Object originalReleaseRepository;
   private static final String APP_ID = "kl-app";
   private static final String CLUSTER_NAME = "default";
   private static final String NAMESPACE_NAME = "application";
@@ -86,6 +85,12 @@ public class ReleaseHistoryServiceTest {
   @Before
   public void setUp() throws Exception {
     mocks = MockitoAnnotations.openMocks(this);
+    // Swap in the mock on the shared singleton and restore it in tearDown, instead of dirtying the
+    // context: closing the context runs Hibernate create-drop and empties the shared H2 database
+    // that other cached test contexts still use.
+    originalBizConfig = ReflectionTestUtils.getField(releaseHistoryService, "bizConfig");
+    originalReleaseRepository =
+        ReflectionTestUtils.getField(releaseHistoryService, "releaseRepository");
     ReflectionTestUtils.setField(releaseHistoryService, "bizConfig", bizConfig);
     mockReleaseHistory = spy(ReleaseHistory.class);
     mockReleaseHistory.setBranchName(BRANCH_NAME);
@@ -96,6 +101,9 @@ public class ReleaseHistoryServiceTest {
 
   @After
   public void tearDown() throws Exception {
+    ReflectionTestUtils.setField(releaseHistoryService, "bizConfig", originalBizConfig);
+    ReflectionTestUtils.setField(
+        releaseHistoryService, "releaseRepository", originalReleaseRepository);
     if (mocks != null) {
       mocks.close();
     }
