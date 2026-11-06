@@ -11,3 +11,5 @@ Apollo 3.1.0
 
 ------------------
 All issues and pull requests are [here](https://github.com/apolloconfig/apollo/milestone/22?closed=1)
+
+Lab note.
