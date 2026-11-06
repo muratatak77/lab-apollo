@@ -31,7 +31,9 @@ When creating the third-party application, Apollo administrator can optionally f
 
 Once configured, Open API requests carrying the token from any other IP are rejected with HTTP 403, even if the token itself is valid. Leaving it empty keeps the previous behavior, i.e. the token can be used from any IP. The configured allowlist is shown on the third-party app list page and returned as `allowedIps` by `GET /openapi/v1/consumer-tokens/by-appId`.
 
-> The client IP is the remote address resolved by the Portal web server, the `X-Forwarded-For` header is not trusted directly. If the Portal is deployed behind a reverse proxy or load balancer, configure `server.forward-headers-strategy=native` (or `framework`) and make sure the proxy is trusted, otherwise the IP of the proxy will be matched against the allowlist.
+> The client IP is the remote address resolved by the Portal web server, the `X-Forwarded-For` header is not trusted directly. If the Portal is deployed behind a reverse proxy or load balancer, configure `server.forward-headers-strategy=native` so that Tomcat's `RemoteIpValve` resolves the client IP, and set `server.tomcat.remoteip.internal-proxies` to a regular expression that matches only the IPs of your own proxies (the default matches all private network ranges). The valve only trusts `X-Forwarded-For` entries added by those proxies, otherwise the IP of the proxy will be matched against the allowlist.
+
+> Do not use `server.forward-headers-strategy=framework` together with the allowlist. Spring's `ForwardedHeaderFilter` takes the leftmost `X-Forwarded-For` value without checking which proxy added it, so a client can send `X-Forwarded-For: <an allowlisted IP>` and bypass the allowlist.
 
 > IPv4 and IPv6 addresses are matched separately, e.g. `127.0.0.1` does not match `::1`.
 

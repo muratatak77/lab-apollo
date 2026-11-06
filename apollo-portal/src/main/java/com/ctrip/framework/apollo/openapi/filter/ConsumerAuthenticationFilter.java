@@ -99,8 +99,10 @@ public class ConsumerAuthenticationFilter implements Filter {
     }
 
     // Use the remote address resolved by the servlet container instead of trusting the
-    // X-Forwarded-For header directly, deployments behind a reverse proxy should configure
-    // server.forward-headers-strategy so that the real client ip is resolved.
+    // X-Forwarded-For header directly. Deployments behind a reverse proxy should configure
+    // server.forward-headers-strategy=native with server.tomcat.remoteip.internal-proxies
+    // limited to their own proxies. Do not use the framework strategy: Spring's
+    // ForwardedHeaderFilter takes the leftmost X-Forwarded-For value, which clients can spoof.
     String clientIp = request.getRemoteAddr();
     if (!ConsumerIpAllowlist.isAllowed(consumerToken.getAllowedIps(), clientIp)) {
       logger.warn("Open api request from {} is rejected by the ip allowlist of consumer {}",

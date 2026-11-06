@@ -31,7 +31,9 @@ Apollo管理员在 `http://{portal_address}/open/add-consumer.html` 创建第三
 
 配置之后，即使Token本身有效，来自白名单以外IP的Open API请求也会被拒绝并返回HTTP 403。留空则保持原有行为，即不限制调用方IP。配置的白名单会展示在第三方应用列表页面，并通过 `GET /openapi/v1/consumer-tokens/by-appId` 的 `allowedIps` 字段返回。
 
-> 客户端IP取自Portal Web服务器解析出的远端地址，不会直接信任 `X-Forwarded-For` 请求头。如果Portal部署在反向代理或负载均衡之后，需要配置 `server.forward-headers-strategy=native`（或 `framework`）并确保代理是受信任的，否则参与白名单匹配的将是代理的IP。
+> 客户端IP取自Portal Web服务器解析出的远端地址，不会直接信任 `X-Forwarded-For` 请求头。如果Portal部署在反向代理或负载均衡之后，需要配置 `server.forward-headers-strategy=native`，由Tomcat的 `RemoteIpValve` 解析客户端IP，并将 `server.tomcat.remoteip.internal-proxies` 设置为只匹配自己代理IP的正则表达式（默认值会匹配所有内网网段）。该Valve只信任这些代理追加的 `X-Forwarded-For` 条目，否则参与白名单匹配的将是代理的IP。
+
+> 启用白名单时请不要使用 `server.forward-headers-strategy=framework`。Spring的 `ForwardedHeaderFilter` 会直接取 `X-Forwarded-For` 最左边的值，不校验是哪个代理添加的，客户端可以发送 `X-Forwarded-For: <白名单中的IP>` 绕过白名单。
 
 > IPv4和IPv6地址是分别匹配的，例如 `127.0.0.1` 不会匹配 `::1`。
 
