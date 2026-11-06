@@ -254,3 +254,4 @@ public class BeanUtils {
   private static final String[] COPY_IGNORED_PROPERTIES =
       {"id", "dataChangeCreatedBy", "dataChangeCreatedTime", "dataChangeLastModifiedTime"};
 }
+// This note ends in spaces, so the base branch fails its style check on its own.   
